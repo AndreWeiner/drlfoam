@@ -1,10 +1,15 @@
-
-from threading import Thread
-from queue import Queue
+"""
+implements a class for handling the execution of runner for filling the buffer
+"""
 import logging
 
+from queue import Queue
+from threading import Thread
 
-def string_args(args: list, kwargs: dict):
+logger = logging.getLogger(__name__)
+
+
+def string_args(args: list, kwargs: dict) -> str:
     args_str = ", ".join([str(arg) for arg in args])
     kwargs_str = ", ".join(f"{key}={str(value)}" for key, value in kwargs.items())
     if args_str and kwargs_str:
@@ -25,34 +30,34 @@ class Runner(Thread):
         self.daemon = True
         self.start()
 
-    def run(self):
+    def run(self) -> None:
         while not self._tasks.empty():
             try:
                 func, args, kwargs = self._tasks.get()
-                logging.info(f"{self._name}: {func.__name__}({string_args(args, kwargs)})")
+                logger.info(f"{self._name}: {func.__name__}({string_args(args, kwargs)})")
                 func(*args, **kwargs)
             except Exception as e:
-                logging.warning(f"{self._name}: " + str(e))
+                logger.warning(f"{self._name}: " + str(e))
             finally:
                 self._tasks.task_done()
 
-        logging.info(f"{self._name}: all tasks done")
+        logger.info(f"{self._name}: all tasks done")
 
-    
+
 class TaskManager(Queue):
     def __init__(self, n_runners_max: int):
         super(TaskManager, self).__init__()
         self._n_runners_max = n_runners_max
         self._runners = None
 
-    def add(self, task, *args, **kwargs):
+    def add(self, task, *args, **kwargs) -> None:
         self.put((task, args, kwargs))
 
-    def run(self, wait: bool=True):
+    def run(self, wait: bool = True) -> None:
         n_runners = min(self._n_runners_max, self.qsize())
         self._runners = [Runner(self, f"Runner {i}") for i in range(n_runners)]
         if wait:
             self.wait()
 
-    def wait(self):
+    def wait(self) -> None:
         self.join()

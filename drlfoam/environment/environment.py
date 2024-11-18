@@ -4,11 +4,11 @@ The base class provides a common interface for all derived environments
 and implements shared functionality. New environments should be derived
 from this class.
 """
-
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 from os.path import join
 from typing import Union, Tuple
 from torch import Tensor
+
 from ..utils import check_path, check_file, check_pos_int
 
 
@@ -16,6 +16,24 @@ class Environment(ABC):
     def __init__(self, path: str, initializer_script: str, run_script: str,
                  clean_script: str, mpi_ranks: int, n_states: int,
                  n_actions: int):
+        """
+        implements a base class for environments
+
+        :param path: path to the current test case inside the 'openfoam' directory
+        :type path: str
+        :param initializer_script: name of the script which should be executed for the base case
+        :type initializer_script: str
+        :param run_script: name of the script which should be executed for the simulations
+        :type run_script: str
+        :param clean_script: name of the script which should be executed for resetting the simulations
+        :type clean_script: str
+        :param mpi_ranks: number of MPI ranks for executing the simulation
+        :type mpi_ranks: int
+        :param n_states: number of states
+        :type n_states: int
+        :param n_actions: number of actions
+        :type n_actions: int
+        """
         self.path = path
         self.initializer_script = initializer_script
         self.run_script = run_script
@@ -105,48 +123,57 @@ class Environment(ABC):
         return self._initialized
 
     @initialized.setter
-    def initialized(self, value):
+    def initialized(self, _):
         self._initialized = True
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def start_time(self) -> float:
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def end_time(self) -> float:
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def control_interval(self) -> int:
         pass
 
-    @abstractproperty
-    def actions_bounds(self) -> Union[Tensor, float]:
+    @property
+    @abstractmethod
+    def action_bounds(self) -> Union[Tensor, float]:
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def seed(self) -> int:
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def policy(self) -> str:
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def train(self) -> bool:
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def observations(self) -> Tuple[Tensor]:
         pass
 
-    def update_control_properties(self, start_time: float, end_time: float,
-                                  control_interval: float, action_bounds: Union[Tensor, float],
-                                  seed: int, policy: str, train: bool):
-        self.start_time = start_time
-        self.end_time = end_time
-        self.control_interval = control_interval
-        self.actions_bounds = action_bounds
-        self.seed = seed
-        self.policy = policy
-        self.train = train
+    @start_time.setter
+    def start_time(self, value):
+        self._start_time = value
+
+    @end_time.setter
+    def end_time(self, value):
+        self._end_time = value
+
+    @seed.setter
+    def seed(self, value):
+        self._seed = value

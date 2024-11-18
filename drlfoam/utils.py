@@ -1,14 +1,21 @@
-
-from typing import Any
-from os.path import isdir, isfile, basename, join
-from glob import glob
-import fileinput
+"""
+helper functions
+"""
 import sys
+import logging
+import fileinput
+
+from glob import glob
+from typing import Any, Union
+from os.path import isdir, isfile, basename, join
+
+logger = logging.getLogger(__name__)
 
 
-def get_time_folders(path: str):
+def get_time_folders(path: str) -> list:
     def is_float(element: Any) -> bool:
-        # taken from: https://stackoverflow.com/questions/736043/checking-if-a-string-can-be-converted-to-float-in-python
+        # taken from:
+        # https://stackoverflow.com/questions/736043/checking-if-a-string-can-be-converted-to-float-in-python
         try:
             float(element)
             return True
@@ -38,7 +45,7 @@ def fetch_line_from_file(path: str, keyword: str) -> str:
         return lines if len(lines) > 1 else lines[0]
 
 
-def replace_line_in_file(path: str, keyword: str, new: str):
+def replace_line_in_file(path: str, keyword: str, new: str) -> None:
     """Keyword-based replacement of one or more lines in a file.
 
     :param path: file location
@@ -58,7 +65,7 @@ def replace_line_in_file(path: str, keyword: str, new: str):
 
 
 def replace_line_latest(path: str, filename: str, keyword: str, new: str,
-                        processor: bool = True):
+                        processor: bool = True) -> None:
     search_path = join(path, "processor0") if processor else path
     latest_time = get_latest_time(search_path)
     if processor:
@@ -72,17 +79,17 @@ def replace_line_latest(path: str, filename: str, keyword: str, new: str,
         )
 
 
-def check_path(path: str):
+def check_path(path: str) -> None:
     if not isdir(path):
         raise ValueError(f"Could not find path {path}")
 
 
-def check_file(file_path: str):
+def check_file(file_path: str) -> None:
     if not isfile(file_path):
         raise ValueError(f"Could not find file {file_path}")
 
 
-def check_pos_int(value: int, name: str, with_zero=False):
+def check_pos_int(value: int, name: str, with_zero=False) -> None:
     message = f"Argument {name} must be a positive integer; got {value}"
     if not isinstance(value, int):
         raise ValueError(message)
@@ -91,7 +98,7 @@ def check_pos_int(value: int, name: str, with_zero=False):
         raise ValueError(message)
 
 
-def check_pos_float(value: float, name: str, with_zero=False):
+def check_pos_float(value: float, name: str, with_zero=False) -> None:
     message = f"Argument {name} must be a positive float; got {value}"
     if not isinstance(value, (float, int)):
         raise ValueError(message)

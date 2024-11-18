@@ -1,4 +1,5 @@
 --find-links https://download.pytorch.org/whl/torch_stable.html
-torch==1.12.1+cpu
+torch==1.13.1
 pandas
 numpy
+PyYAML

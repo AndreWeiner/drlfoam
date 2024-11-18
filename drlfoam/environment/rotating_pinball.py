@@ -1,21 +1,25 @@
-
-from typing import Tuple
-from os import remove
-from os.path import join, isfile, isdir, sep
-from glob import glob
-from re import sub
-from io import StringIO
-from shutil import rmtree
+"""
+implements the environment for the RotatingPinball2D
+"""
 import logging
-from pandas import read_csv, DataFrame
 import torch as pt
+
+from re import sub
+from os import remove
+from glob import glob
+from io import StringIO
+from typing import Union
+from shutil import rmtree
+from pandas import read_csv, DataFrame
+from os.path import join, isfile, isdir, sep
+
 from .environment import Environment
 from ..constants import TESTCASE_PATH, DEFAULT_TENSOR_TYPE
 from ..utils import (check_pos_int, check_pos_float, replace_line_in_file,
-                     get_time_folders, get_latest_time, replace_line_latest)
-
+                     get_time_folders, replace_line_latest)
 
 pt.set_default_tensor_type(DEFAULT_TENSOR_TYPE)
+logger = logging.getLogger(__name__)
 
 
 def _parse_surface_field_sum(path: str) -> DataFrame:
@@ -77,7 +81,7 @@ def _parse_probes(path: str, n_probes: int) -> DataFrame:
     names = ["t"] + [f"p{i}" for i in range(n_probes)]
     return read_csv(
         StringIO(pdata), header=None, names=names, comment="#",
-        sep =r"\s+"
+        sep=r"\s+"
     )
 
 
@@ -99,7 +103,17 @@ def _parse_trajectory(path: str) -> DataFrame:
 
 
 class RotatingPinball2D(Environment):
-    def __init__(self, r1: float = 1.5, r2: float = 1.0, r3: float = 0.4):
+    def __init__(self, r1: Union[int, float] = 1.5, r2: Union[int, float] = 1.0, r3: Union[int, float] = 0.4):
+        """
+        implements the RotatingCylinder2D environment
+
+        :param r1: offset in reward function
+        :type r1: Union[int, float]
+        :param r2: weighing factor for cd in reward function
+        :type r2: Union[int, float]
+        :param r3: weighing factor for cl in reward function
+        :type r3: Union[int, float]
+        """
         super(RotatingPinball2D, self).__init__(
             join(TESTCASE_PATH, "rotatingPinball2D"), "Allrun.pre",
             "Allrun", "Allclean", 8, 14, 3
@@ -116,15 +130,17 @@ class RotatingPinball2D(Environment):
         self._action_bounds = 5.0
         self._policy = "policy.pt"
 
-    def _reward(self, cx: pt.Tensor, cy: pt.Tensor) -> pt.Tensor:
-        return self._r1 - (self._r2 * cx + self._r3 * cy.abs())
+    def reward(self, data: dict) -> pt.Tensor:
+        _cx = data[f"cx_a"] + data[f"cx_b"] + data[f"cx_c"]
+        _cy = data[f"cy_a"] + data[f"cy_b"] + data[f"cy_c"]
+        return self._r1 - (self._r2 * _cx + self._r3 * _cy.abs())
 
     @property
     def start_time(self) -> float:
         return self._start_time
 
     @start_time.setter
-    def start_time(self, value: float):
+    def start_time(self, value: float) -> None:
         check_pos_float(value, "start_time", with_zero=True)
         replace_line_in_file(
             join(self.path, "system", "controlDict"),
@@ -138,7 +154,7 @@ class RotatingPinball2D(Environment):
         return self._end_time
 
     @end_time.setter
-    def end_time(self, value: float):
+    def end_time(self, value: float) -> None:
         check_pos_float(value, "end_time", with_zero=True)
         replace_line_in_file(
             join(self.path, "system", "controlDict"),
@@ -148,11 +164,11 @@ class RotatingPinball2D(Environment):
         self._end_time = value
 
     @property
-    def control_interval(self) -> int:
+    def control_interval(self) -> Union[float, int]:
         return self._control_interval
 
     @control_interval.setter
-    def control_interval(self, value: int):
+    def control_interval(self, value: int) -> None:
         check_pos_float(value, "control_interval")
         replace_line_in_file(
             join(self.path, "system", "controlDict"),
@@ -167,11 +183,11 @@ class RotatingPinball2D(Environment):
         self._control_interval = value
 
     @property
-    def actions_bounds(self) -> float:
+    def action_bounds(self) -> float:
         return self._action_bounds
 
-    @actions_bounds.setter
-    def action_bounds(self, value: float):
+    @action_bounds.setter
+    def action_bounds(self, value: float) -> None:
         proc = True if self.initialized else False
         new = f"        absOmegaMax     {value:2.4f};"
         replace_line_latest(self.path, "U", "absOmegaMax", new, proc)
@@ -182,7 +198,7 @@ class RotatingPinball2D(Environment):
         return self._seed
 
     @seed.setter
-    def seed(self, value: int):
+    def seed(self, value: int) -> None:
         check_pos_int(value, "seed", with_zero=True)
         proc = True if self.initialized else False
         new = f"        seed     {value};"
@@ -194,7 +210,7 @@ class RotatingPinball2D(Environment):
         return self._policy
 
     @policy.setter
-    def policy(self, value: str):
+    def policy(self, value: str) -> None:
         proc = True if self.initialized else False
         new = f"        policy     {value};"
         replace_line_latest(self.path, "U", "policy", new, proc)
@@ -205,7 +221,7 @@ class RotatingPinball2D(Environment):
         return self._train
 
     @train.setter
-    def train(self, value: bool):
+    def train(self, value: bool) -> None:
         proc = True if self.initialized else False
         value_cpp = "true" if value else "false"
         new = f"        train           {value_cpp};"
@@ -224,31 +240,34 @@ class RotatingPinball2D(Environment):
             probes_path = join(times_folder_probes[0], "p")
             probes = _parse_probes(probes_path, self._n_states)
             p_names = ["p{:d}".format(i) for i in range(self._n_states)]
-                      
+
             for c in ("a", "b", "c"):
                 obs[f"cx_{c}"] = pt.from_numpy(forces[f"cx_{c}"].values)
                 obs[f"cy_{c}"] = pt.from_numpy(forces[f"cy_{c}"].values)
                 obs[f"alpha_{c}"] = pt.from_numpy(tr[f"alpha_{c}"].values)
                 obs[f"beta_{c}"] = pt.from_numpy(tr[f"beta_{c}"].values)
-                
-            obs["states"] = pt.from_numpy(probes[p_names].values)  
+
+            obs["states"] = pt.from_numpy(probes[p_names].values)
             obs["actions"] = pt.stack((
                 pt.from_numpy(tr[f"omega_a"].values),
                 pt.from_numpy(tr[f"omega_b"].values),
                 pt.from_numpy(tr[f"omega_c"].values)
             )).T
-            obs[f"rewards"] = self._reward(
-                obs[f"cx_a"] +  obs[f"cx_b"] + obs[f"cx_c"],
-                obs[f"cy_a"] +  obs[f"cy_b"] + obs[f"cy_c"]
-            )
+            obs[f"rewards"] = self.reward(obs)
 
         except Exception as e:
-            logging.warning("Could not parse observations: ", e)
+            logger.warning("Could not parse observations: ", e)
         finally:
             return obs
 
-    def reset(self):
-        files = ["log.pimpleFoam", "trajectory.csv"]
+    def reset(self) -> None:
+        # if we are not in base case, then there should be a log-file from the solver used (e.g. interFoam / pimpleFoam)
+        solver_log = glob(join(self.path, "log.*Foam"))
+        if solver_log:
+            files = [f"log.{solver_log[0].split('.')[-1]}", "finished.txt", "trajectory.csv"]
+        else:
+            # otherwise we are in the base case and have only a log.*Foam.pre, which we don't want to remove
+            files = ["finished.txt", "trajectory.csv"]
         for f in files:
             f_path = join(self.path, f)
             if isfile(f_path):

@@ -144,3 +144,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+post_processing/
+run/

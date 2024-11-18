@@ -2,15 +2,17 @@
 
 See: https://slurm.schedmd.com/documentation.html
 """
+import logging
 
-from typing import List
+from typing import List, Union
 from os.path import join
 from subprocess import Popen, PIPE
 from time import sleep
-import logging
+
 from .buffer import Buffer
 from ..environment import Environment
 
+logger = logging.getLogger(__name__)
 
 DEFAULT_SHELL = "#!/bin/bash -l"
 SLURM_PREFIX = "#SBATCH"
@@ -28,8 +30,11 @@ SLURM_NTASKS_PER_NODE = "--ntasks-per-node"
 SLURM_MEM_PER_CPU = "--mem-per-cpu"
 
 
-def submit_job(jobscript: str) -> int:
-    proc = Popen(["sbatch", jobscript], stdout=PIPE)
+def submit_job(jobscript: Union[str, list]) -> int:
+    if type(jobscript) is str:
+        proc = Popen(["sbatch", jobscript], stdout=PIPE)
+    else:
+        proc = Popen(["sbatch"] + jobscript, stdout=PIPE)
     response = str(proc.stdout.read(), "utf-8")
     return int(response.split()[-1])
 
@@ -41,7 +46,7 @@ def get_job_status(job_id: int) -> str:
     return response[12]
 
 
-def submit_and_wait(jobscript: str, wait: int = 5, timeout: int = 1e15):
+def submit_and_wait(jobscript: str, wait: int = 5, timeout: Union[int, float] = 1e15) -> None:
     job_id = submit_job(jobscript)
     running, time_passed = True, 0
     while running:
@@ -56,16 +61,16 @@ def submit_and_wait(jobscript: str, wait: int = 5, timeout: int = 1e15):
                         f"Slurm job {job_id} exceeded time limited of {timeout}s and got canceled")
             else:
                 running = False
-        except Exception as e:
+        except Exception:
             running = False
 
 
 class SlurmConfig(object):
     def __init__(
         self,
-        commands_pre: List[str] = [],
-        commands: List[str] = [],
-        modules: List[str] = [],
+        commands_pre: List[str] = None,
+        commands: List[str] = None,
+        modules: List[str] = None,
         job_name: str = None,
         n_tasks: int = None,
         n_nodes: int = None,
@@ -80,6 +85,12 @@ class SlurmConfig(object):
         mem_per_cpu: int = None,
     ):
 
+        if commands_pre is None:
+            commands_pre = []
+        if commands is None:
+            commands = []
+        if modules is None:
+            modules = []
         self._commands_pre = commands_pre
         self._commands = commands
         self._modules = modules
@@ -98,7 +109,7 @@ class SlurmConfig(object):
             SLURM_MEM_PER_CPU: mem_per_cpu,
         }
 
-    def write(self, path: str):
+    def write(self, path: str) -> None:
         entries = [DEFAULT_SHELL, ""]
         for key, val in self._options.items():
             if val is not None:
@@ -114,7 +125,7 @@ class SlurmConfig(object):
             entries.append("")
             entries += all_commands
         else:
-            logging.warning(f"Warning: no commands specified in jobscript {path}")
+            logger.warning(f"Warning: no commands specified in jobscript {path}")
 
         with open(path, "w+") as jobscript:
             jobscript.write("\n".join(entries))
@@ -156,7 +167,7 @@ class SlurmConfig(object):
         return self._options[SLURM_NTASKS]
 
     @n_tasks.setter
-    def n_tasks(self, value: int):
+    def n_tasks(self, value: int) -> None:
         self._options[SLURM_NTASKS] = value
 
     @property
@@ -172,7 +183,7 @@ class SlurmConfig(object):
         return self._options[SLURM_OUTPUT]
 
     @std_out.setter
-    def std_out(self, value: str):
+    def std_out(self, value: str) -> None:
         self._options[SLURM_OUTPUT] = value
 
     @property
@@ -180,7 +191,7 @@ class SlurmConfig(object):
         return self._options[SLURM_ERROR]
 
     @err_out.setter
-    def err_out(self, value: str):
+    def err_out(self, value: str) -> None:
         self._options[SLURM_ERROR] = value
 
     @property
@@ -188,7 +199,7 @@ class SlurmConfig(object):
         return self._options[SLURM_PARTITION]
 
     @partition.setter
-    def partition(self, value: str):
+    def partition(self, value: str) -> None:
         self._options[SLURM_PARTITION] = value
 
     @property
@@ -196,7 +207,7 @@ class SlurmConfig(object):
         return self._options[SLURM_CONSTRAINT]
 
     @constraint.setter
-    def constraint(self, value: str):
+    def constraint(self, value: str) -> None:
         self._options[SLURM_CONSTRAINT] = value
 
     @property
@@ -204,7 +215,7 @@ class SlurmConfig(object):
         return self._options[SLURM_MAIL_TYPE]
 
     @mail_type.setter
-    def mail_type(self, value: str):
+    def mail_type(self, value: str) -> None:
         self._options[SLURM_MAIL_TYPE] = value
 
     @property
@@ -212,7 +223,7 @@ class SlurmConfig(object):
         return self._options[SLURM_MAIL_USER]
 
     @mail_user.setter
-    def mail_user(self, value: str):
+    def mail_user(self, value: str) -> None:
         self._options[SLURM_MAIL_USER] = value
 
     @property
@@ -220,7 +231,7 @@ class SlurmConfig(object):
         return self._options[SLURM_TIME]
 
     @time.setter
-    def time(self, value: str):
+    def time(self, value: str) -> None:
         self._options[SLURM_TIME] = value
 
     @property
@@ -228,7 +239,7 @@ class SlurmConfig(object):
         return self._options[SLURM_NTASKS_PER_NODE]
 
     @n_tasks_per_node.setter
-    def n_tasks_per_node(self, value: int):
+    def n_tasks_per_node(self, value: int) -> None:
         self._options[SLURM_NTASKS_PER_NODE] = value
 
     @property
@@ -236,8 +247,12 @@ class SlurmConfig(object):
         return self._options[SLURM_MEM_PER_CPU]
 
     @mem_per_cpu.setter
-    def mem_per_cpu(self, value: int):
+    def mem_per_cpu(self, value: int) -> None:
         self._options[SLURM_MEM_PER_CPU] = value
+
+    @property
+    def options(self):
+        return self._options
 
 
 class SlurmBuffer(Buffer):
@@ -249,7 +264,7 @@ class SlurmBuffer(Buffer):
         n_runners_max: int,
         slurm_config: SlurmConfig,
         keep_trajectories: bool = True,
-        timeout: int = 1e15,
+        timeout: Union[int, float] = 1e15,
         wait: int = 5
     ):
         super(SlurmBuffer, self).__init__(
@@ -258,7 +273,7 @@ class SlurmBuffer(Buffer):
         self._config = slurm_config
         self._wait = wait
 
-    def prepare(self):
+    def prepare(self) -> None:
         self._config.commands = [
             f"cd {self._base_env.path}",
             f"./{self._base_env.initializer_script}",
@@ -273,7 +288,7 @@ class SlurmBuffer(Buffer):
         self._manager.run()
         self._base_env.initialized = True
 
-    def fill(self):
+    def fill(self) -> None:
         for i, env in enumerate(self.envs):
             self._config.commands = [f"cd {env.path}", f"./{env.run_script}"]
             self._config.job_name = f"copy_{i}"

@@ -1,0 +1,48 @@
+# drlfoam Setup Configuration; any mandatory entries, which are not present here will be replaced with default values
+
+# general settings for the training
+training:
+    executer: "local"                       # executer, either 'local' or 'slurm'
+    simulation: "rotatingCylinder2D"        # simulation environment either 'rotatingCylinder2D' or 'rotatingPinball2D'
+    training_path: "test_training"          # path to the directory in which the training should be executed
+    n_runner: 2                             # number of runners for parallel execution
+    buffer_size: 4                          # buffer size
+    end_time: 8                             # finish time of the simulation
+    seed: 0                                 # seed value
+    episodes: 20                            # number of episodes to run the training
+    checkpoint: null                        # start fresh or from a checkpoint.pt file null means no checkpoint provided
+    timeout: 1e15                           # execution time before a job gets killed, only relevant if executer is slurm
+
+# settings for the policy network
+policy_network:
+    n_layers: 2                             # number of hidden layers
+    n_neurons: 64                           # number of neurons per layer
+    activation: "relu"                      # activation function
+
+# settings for training the policy network
+policy_training:
+    epochs: 100                             # max. number of epochs to run
+    lr: 4e-4                                # initial learning rate for the policy network
+    clip: 0.1                               # value for clipping the update of the policy network
+    grad_norm: "inf"                        # clipping value for the gradient of the policy network
+    kl_stop: 0.2                            # value for KL-divergence criteria for stopping the training
+
+# settings for the value network
+value_network:
+    n_layers: 2                             # number of hidden layers
+    n_neurons: 64                           # number of neurons per layer
+    activation: "relu"                      # activation function
+
+# settings for training the value network
+value_training:
+    epochs: 100                             # max. number of epochs to run
+    lr: 5e-4                                # initial learning rate for the value network
+    clip: 0.1                               # value for clipping the update of the value network
+    grad_norm: "inf"                        # clipping value for the gradient of the value network
+    mse_stop: 25.0                          # value for MSE-divergence criteria for stopping the training
+
+# settings for the PPO hyperparameter
+ppo_settings:
+    gamma: 0.99                             # discount factor
+    lambda: 0.97                            # hyperparameter lambda for computing the GAE
+    entropy_weight: 0.01                    # value for weighing the entropy

@@ -1,6 +1,6 @@
 #!/bin/bash
 cd "${0%/*}" || exit
-. ${DRL_BASE:?}/openfoam/RunFunctions
+. "${DRL_BASE:?}"/openfoam/RunFunctions
 #------------------------------------------------------------------------------
 
 # run case
